@@ -1,40 +1,35 @@
 import sys
-import operator
+def eval(fname1, fname2):
+    with open(fname1, 'r') as f:
+        predict = f.readlines()
+        
+    with open(fname2, 'r') as f:
+        tagged = f.readlines()
 
-path_predict = sys.argv[1]
-path_tagged = sys.argv[2]
+    if len(predict) != len(tagged): 
+        print "File Error"
+        exit()
 
-fh_predict = open(path_predict, 'r')
-fh_tagged = open(path_tagged, 'r')
+    res = dict()
+    count_all = 0.0
+    count_wrong = 0.0
 
-predict = fh_predict.readlines()
-tagged = fh_tagged .readlines()
-
-if len(predict) != len(tagged): 
-    print "File Error"
-    exit()
-
-res = dict()
-count_all =0.0
-count_wrong =0.0
-
-for i in range(len(predict)):
-    pre = predict[i].split()
-    tag = tagged[i].split()
-    for p, t in zip(pre,tag):
-        count_all += 1
-        if p!=t:
-            count_wrong +=1
-            mismatched = p.rsplit('/',1)[1] + '/' + t.rsplit('/',1)[1]
-            if mismatched in res.keys():
-                res[mismatched] += 1
-            else:
-                res[mismatched] =1
-
-                
-acc = (count_all-count_wrong)/count_all
-res = sorted(res.items(), key=operator.itemgetter(1))
-print res + '\n'
-print "number of wrong " + str(count_wrong)
-print "accuracy =" + str(acc)
-
+    for line in zip(predict,tagged):
+        pre = line[0].split()
+        tag = line[1].split()
+        for p, t in zip(pre,tag):
+            count_all += 1
+            if p!=t:
+                count_wrong +=1
+                mismatched = p.rsplit('/',1)[1] + '/' + t.rsplit('/',1)[1]
+                if mismatched in res.keys():
+                    res[mismatched] += 1
+                else:
+                    res[mismatched] =1
+             
+    acc = (count_all-count_wrong)/count_all
+    return acc, res
+ 
+if __name__ == "__main__":
+    acc = eval(sys.argv[1], sys.argv[2])[0]
+    print "accuracy = {:.4f}".format(acc)
