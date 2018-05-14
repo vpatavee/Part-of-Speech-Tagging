@@ -1,90 +1,119 @@
-import json
 import sys
-import re
-def count_word(reviews, labels, set_of_labels, how_token = 'standard' ):
-    count = {}
-    df = {}
-    total = [0] * len(set_of_labels)
-    for i,review in enumerate(reviews):
-        class_num = set_of_labels.index(labels[i])
-        tokens = tokenization(review, how_token)
-        for token in tokens:
-            if token not in count:
-                count[token] = [0] * len(set_of_labels)
-            count[token][class_num] += 1
-            total[class_num] += 1
-        set_of_tokens = set(tokens)
-        for token in set_of_tokens:
-            if token not in df:
-                df[token] = 0
-            df[token] += 1
-    return count, total, df
-                
-def make_prob(count, total = [], how_smooth = 'add_one', param = 0):
-    prob = {}
-    num_token = len(count)
-    if how_smooth == 'add_one':
-        for token in count:
-            prob[token] = [ (n + 1.0) / (total[i] + num_token) for i, n  in enumerate(count[token])]     
-    elif how_smooth == 'JM':
-        num_words_total = sum([sum(count[token]) for token in count])
-        for token in count:
-            prob_jm = sum(count[token]) / float(num_words_total)
-            #print prob_jm
-            prob[token] = [ param * (float(n) / total[i]) + (1 - param) * prob_jm for i, n  in enumerate(count[token])]   
-        
-    return prob
+import json
+import math
 
-def make_prior_prob(labels, set_of_labels):
-    prior_prob = [0] * len(set_of_labels)
-    for label in labels:
-        prior_prob[set_of_labels.index(label)] += 1.0
-    return [n/len(labels) for n in prior_prob]            
-     
-def tokenization(review, how_token):
-    if how_token == 'standard':
-        return review.split()
-    elif how_token == 'remove_punc':
-        tokens = review.split()
-        #return [token.strip('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~') for token in tokens]
-        #return [token.strip('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~') if token.strip('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~') != '' else token for token in tokens]
-        return re.findall("\w+", review)
-        
-        
-def count_with_df(count, df, min_percent, max_percent):
-    max_df = max([df[token] for token in df])
-    max_df_token = [token for token in df if df[token] > max_percent * max_df]
-    min_df_token = [token for token in df if df[token] < min_percent * max_df]
-    for token in min_df_token:
-        count.pop(token)
-    for token in max_df_token:
-        count.pop(token)
+path = sys.argv[1]
+fh = open(path, 'r')
+corpus = fh.readlines()
 
+def print_dict(d,fh):
+    res = ""
+    for k1 in d:
+        for k2 in d[k1]:
+            res += k1 + " " + k2 + " " + str(d[k1][k2]) + " "
+        res += '\n'
+    fh.write(res)
     
 
-if __name__ == "__main__":
+#transition probability
 
-    reviews = []
-    labels_1 = []
-    labels_2 = []
+trans_prob = dict()
+counter = 0
+state_prob = dict()
 
-    with open(sys.argv[1], 'r') as f:
-        for line in f:
-            reviews.append(line.split(" ",3)[3].strip())
-            labels_1.append(line.split(" ",3)[1].strip())
-            labels_2.append(line.split(" ",3)[2].strip())
+for line in corpus:
+    tokens = list(line.decode('utf-8').split())
+    
+    pos = ["START"] + [token.rsplit('/',1)[1] for token in tokens] + ["END"]
+    #pos = ["START"] + [token.rsplit('/',1)[1] for token in tokens] 
+    
+    for p in pos:
+        if p in state_prob.keys():
+            state_prob[p] +=1
+        else:
+            state_prob[p] = 1.0
+    
+    for i in range(len(pos)-1):
+        if pos[i] in trans_prob:
+            if pos[i+1] in trans_prob[pos[i]]:
+                trans_prob[pos[i]][pos[i+1]] += 1
+            else:
+                trans_prob[pos[i]][pos[i+1]] = 1.0
+        else:
+            trans_prob[pos[i]] = dict()
+            trans_prob[pos[i]][pos[i+1]] = 1.0
+
+    counter +=1 
+    
+#smoothing transition probability
+
+
+
+all_pos = trans_prob.keys() + ["END"]
+
+for k1 in trans_prob:
+    for pos in all_pos:
+        if pos in trans_prob[k1].keys():
+            trans_prob[k1][pos] += 1
+        else:
+            trans_prob[k1][pos] = 1
             
-    count_1, total_1, df1 = count_word(reviews, labels_1, ['Fake', 'True'], how_token = 'remove_punc')
-    count_with_df(count_1, df1, min_percent = 0, max_percent = 0.5)
-    prob_1 = make_prob(count_1, total_1)
-    prior_prob_1 = make_prior_prob(labels_1, ['Fake', 'True'])
+for key in trans_prob:
+    total = sum(trans_prob[key].values())
+    for key2 in trans_prob[key]:
+        trans_prob[key][key2] =math.log(trans_prob[key][key2]/ total)
 
-    count_2, total_2, df2 = count_word(reviews, labels_2, ['Neg', 'Pos'], how_token = 'remove_punc')
-    count_with_df(count_2, df2, min_percent = 0, max_percent = 0.5)
-    prob_2 = make_prob(count_2, total_2)
-    prior_prob_2 = make_prior_prob(labels_2, ['Neg', 'Pos'])
+#Jelinek-Mercer smoothing
+# total_ = sum([n[1] for n in state_prob.items()])
+# for key in state_prob:
+    # state_prob[key] =state_prob[key]/ total_
+            
+# for k1 in trans_prob:
+    # for pos in all_pos:
+        # if pos in trans_prob[k1].keys():
+            # trans_prob[k1][pos] += 0
+        # else:
+            # trans_prob[k1][pos] = 0  
 
-    with open('nbmodel.txt', 'w') as f:
-        f.write(json.dumps({"prior_prob_1":prior_prob_1, "prob_1":prob_1, "prior_prob_2": prior_prob_2, "prob_2":prob_2}))
+# lamb = 0.9
+# for key in trans_prob:
+    # total = sum(trans_prob[key].values())
+    # for key2 in trans_prob[key]:
+        # trans_prob[key][key2] =(lamb * trans_prob[key][key2]/ total) + (1-lamb) * state_prob[key2]
 
 
+
+
+#emission probability
+emi_prob = dict()
+counter = 0
+
+
+for line in corpus:
+    tokens = list(line.decode('utf-8').split())
+    
+    pairs = [(token.rsplit('/',1)[0],token.rsplit('/',1)[1]) for token in tokens] 
+    
+    for pair in pairs:
+        if pair[1] in emi_prob:
+            if pair[0] in emi_prob[pair[1]]:
+                emi_prob[pair[1]][pair[0]] += 1
+            else:
+                emi_prob[pair[1]][pair[0]] = 1.0
+        else:
+            emi_prob[pair[1]] = dict()
+            emi_prob[pair[1]][pair[0]] = 1.0
+
+    counter +=1 
+    #if counter >5: break
+    
+for pos in emi_prob:
+    total = sum(emi_prob[pos].values())
+    for w in emi_prob[pos]:
+        emi_prob[pos][w] = math.log(emi_prob[pos][w]/total)
+        
+#json.dump({"emi":emi_prob, "tran":trans_prob}, open("hmmmodel.txt",'w'))
+
+json_data = json.dumps({"emi":emi_prob, "tran":trans_prob}, ensure_ascii=False)
+with open("hmmmodel.txt",'w') as outfile:
+    outfile.write(json_data.encode('utf8'))
