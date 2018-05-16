@@ -22,9 +22,9 @@ The program is designed to support any languages, so each word is treated as a s
 The variations are implemented and the results are recorded as follows;
 
 * Basic HMM implementation as described in [Speech and Language Processing (Jurafsky & Martin)](https://web.stanford.edu/~jurafsky/slp3/10.pdf) This yield the accuracy of 0.8803 for English and 0.8629 for Chinese.
-* Implement [Jelinek-Mercer smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf)
-* Implement [Good-Turing smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf)
-* Implement constraint for unknown words that limits their potential tags to those labels with the most unique types 
+* Implement [Jelinek-Mercer smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf). The accuracy is around 0.88. No significant improvement.
+* Implement [Good-Turing smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf). The accuracy is increased to 0.885.
+* Implement constraint for unknown words that limits their potential tags to those labels with the most unique types. The accuracy is increased to 0.89.
 
 
 **hmmdecode.py**
