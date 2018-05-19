@@ -1,6 +1,7 @@
 import sys
 import json
 import math
+import copy
 
 def count_transition(corpus):
     trans_prob = dict()
@@ -50,11 +51,11 @@ def count_emission(corpus):
 
     
 def make_prob(counting, all_keys = None, how = None, log = True, param = None, state_prob = None):
-    probability = counting.copy()
+    probability = copy.deepcopy(counting)
     if how == "add-1":
-        for k1 in counting:
+        for k1 in probability:
             for pos in all_keys:
-                if pos in counting[k1]:
+                if pos in probability[k1]:
                     probability[k1][pos] += 1
                 else:
                     probability[k1][pos] = 1
@@ -82,23 +83,50 @@ def make_prob(counting, all_keys = None, how = None, log = True, param = None, s
         total = sum(probability[key].values())
         for key2 in probability[key]:
             if log:
-                probability[key][key2] =math.log(counting[key][key2]/ total)  
+                probability[key][key2] =math.log(probability[key][key2]/ total)  
             else:
                 probability[key][key2] =probability[key][key2]/ total
 
     return probability        
 
+def find_open_class(counting):
+    num_of_pos = len(counting)
+    number_of_words = {}
+    open_class = {}
+    for pos in counting:
+        unique = len(counting[pos])
+        total = sum([counting[pos][word] for word in counting[pos]])
+        number_of_words[pos] = total
+        open_class[pos] = float(unique)/total
+        
+        
+    
+    l = sorted([number_of_words[pos] for pos in number_of_words])[(int)(num_of_pos * 0.2)]
 
+    for pos in number_of_words:
+        if number_of_words[pos] <= l:
+            open_class[pos] = 0
+    
+    
+    uniques = sorted([open_class[pos] for pos in open_class], reverse=True)[0:(int)(num_of_pos * 0.1)]
+    
+    open_class = {pos:open_class[pos] for pos in open_class if open_class[pos] >= uniques[-1]}    
+    print open_class
+    return open_class.keys()
+   
+    
+    
+    
 if __name__ == "__main__":    
 
     with open(sys.argv[1], 'r') as f:
         corpus = f.readlines()    
         
-    trans_prob, state_prob, all_pos = count_transition(corpus)
-    trans_prob = make_prob(trans_prob, all_pos, how = "Jelinek-Mercer", param = 0.95, state_prob = state_prob)
-    #trans_prob = make_prob(trans_prob, all_pos, how = "add-1")
-    emi_prob, all_vocab = count_emission(corpus)
-    emi_prob = make_prob(emi_prob)
-
+    trans_count, state_count, all_pos = count_transition(corpus)
+    #trans_prob = make_prob(trans_count, all_pos, how = "Jelinek-Mercer", param = 0.95, state_prob = state_count)
+    trans_prob = make_prob(trans_count, all_pos, how = "add-1")
+    emi_count, all_vocab = count_emission(corpus)
+    emi_prob = make_prob(emi_count)
+    open_class= find_open_class(emi_count)
     with open("hmmmodel.txt",'w') as f:
-        json.dump({"emi":emi_prob, "tran":trans_prob}, f, encoding="utf-8")
+        json.dump({"emi":emi_prob, "tran":trans_prob, "open_class" : open_class }, f, encoding="utf-8")
