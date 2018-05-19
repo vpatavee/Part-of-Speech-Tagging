@@ -25,7 +25,7 @@ The variations are implemented and the results are recorded as follows;
 * Implement [Jelinek-Mercer smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf). The accuracy is around 0.88. No significant improvement.
 * Implement [Good-Turing smoothing](https://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf). The accuracy is increased to 0.885.
 * Implement constraint for unknown words that limits their potential tags to those labels with the most unique types. The accuracy is increased to 0.885.
-* Implement both Good-Turing and above constrint. The accuracy is increased to 0.89
+* Implement both Good-Turing and above constraint. The accuracy is increased to 0.89
 
 
 **hmmdecode.py**
